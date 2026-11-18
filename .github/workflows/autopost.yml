@@ -1,0 +1,56 @@
+name: Publicar contenido programado (IG + FB)
+
+on:
+  schedule:
+    # Ejecuta cada 30 minutos (UTC). El script compara con hora Argentina (GMT-3)
+    # y publica automaticamente los posts/historias cuya fecha ya se cumplio.
+    - cron: "0,30 * * * *"
+  workflow_dispatch:
+    inputs:
+      force_id:
+        description: "Opcional: ID especifico a publicar ahora (ej. M01 o H01)"
+        required: false
+        default: ""
+      dry_run:
+        description: "Solo verificar sin publicar (true/false)"
+        required: false
+        default: "false"
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Run Meta Graph API Publisher
+        env:
+          META_TOKEN: ${{ secrets.META_TOKEN }}
+        run: |
+          ARGS=""
+          if [ "${{ github.event.inputs.dry_run }}" = "true" ]; then
+            ARGS="$ARGS --check"
+          fi
+          if [ -n "${{ github.event.inputs.force_id }}" ]; then
+            ARGS="$ARGS --force-id ${{ github.event.inputs.force_id }}"
+          fi
+          python scripts/publish.py $ARGS
+
+      - name: Commit updated state.json
+        if: always() && github.event.inputs.dry_run != 'true'
+        run: |
+          git config user.name "mdr-autopost-bot"
+          git config user.email "bot@mdr.local"
+          git add state.json
+          if ! git diff --cached --quiet; then
+            git commit -m "Update published state [skip ci]"
+            git push
+          fi
