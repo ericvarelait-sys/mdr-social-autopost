@@ -2,9 +2,12 @@ name: Publicar contenido programado (IG + FB)
 
 on:
   schedule:
-    # Ejecuta cada 30 minutos (UTC). El script compara con hora Argentina (GMT-3)
-    # y publica automaticamente los posts/historias cuya fecha ya se cumplio.
-    - cron: "0,30 * * * *"
+    # Horarios exactos en minutos impares (evita saturacion de :00 y :30 en GitHub)
+    # Equivalen a ~10:37, 11:07, 12:47, 13:07, 18:37, 19:37, 20:37 y 22:13 hora Argentina (GMT-3)
+    - cron: "37 13,21,22,23 * * *"
+    - cron: "7 14,16 * * *"
+    - cron: "47 15 * * *"
+    - cron: "13 1 * * *"
   workflow_dispatch:
     inputs:
       force_id:
