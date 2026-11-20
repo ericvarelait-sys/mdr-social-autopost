@@ -81,7 +81,6 @@ def publish_instagram(item, image_urls, ig_id, token):
         pub = api_post(f"{ig_id}/media_publish", {"creation_id": cid, "access_token": token})
         return pub["id"]
 
-    # Carousel (2..10 images)
     child_ids = []
     for img_url in image_urls[:10]:
         child = api_post(f"{ig_id}/media", {
@@ -150,6 +149,29 @@ def publish_facebook(item, image_urls, page_id, page_token):
     return feed["id"]
 
 
+def find_pending_items(schedule, published_map, now, force_id="", lookahead_min=45):
+    due = []
+    upcoming = []
+    for item in schedule.get("items", []):
+        iid = item["id"]
+        rec = published_map.get(iid, {})
+        if rec.get("ig_id") and rec.get("fb_id"):
+            continue
+
+        if force_id:
+            if iid == force_id:
+                due.append(item)
+            continue
+
+        sched_dt = datetime.fromisoformat(item["scheduled_at"])
+        delta = now - sched_dt
+        if timedelta(0) <= delta <= timedelta(hours=36):
+            due.append(item)
+        elif timedelta(0) < (sched_dt - now) <= timedelta(minutes=lookahead_min):
+            upcoming.append((sched_dt, item))
+    return due, upcoming
+
+
 def main():
     parser = argparse.ArgumentParser(description="Publicador oficial Meta Graph API")
     parser.add_argument("--check", action="store_true", help="Solo mostrar qué toca publicar sin enviar a Meta")
@@ -165,27 +187,22 @@ def main():
     base_url = os.environ.get("MEDIA_BASE_URL", schedule.get("media_base_url", "")).rstrip("/") + "/"
     now = datetime.now(ARG_TZ)
 
-    due_items = []
-    for item in schedule.get("items", []):
-        iid = item["id"]
-        rec = published_map.get(iid, {})
-        already_ig = bool(rec.get("ig_id"))
-        already_fb = bool(rec.get("fb_id"))
-        if already_ig and already_fb:
-            continue
+    due_items, upcoming_items = find_pending_items(schedule, published_map, now, args.force_id)
 
-        if args.force_id:
-            if iid == args.force_id:
-                due_items.append(item)
-            continue
-
-        sched_dt = datetime.fromisoformat(item["scheduled_at"])
-        delta = now - sched_dt
-        if timedelta(0) <= delta <= timedelta(hours=36):
-            due_items.append(item)
+    if not due_items and upcoming_items and not args.check:
+        upcoming_items.sort(key=lambda x: x[0])
+        target_dt, target_item = upcoming_items[0]
+        wait_sec = max(0, (target_dt - datetime.now(ARG_TZ)).total_seconds()) + 2
+        print(f"[{now.isoformat()}] Despertado antes de tiempo. Esperando {int(wait_sec)}s hasta {target_dt.isoformat()} para {target_item['id']}...")
+        time.sleep(wait_sec)
+        now = datetime.now(ARG_TZ)
+        due_items, _ = find_pending_items(schedule, published_map, now, args.force_id)
 
     if not due_items:
-        print(f"[{now.isoformat()}] Nada pendiente por publicar ahora.")
+        msg = f"[{now.isoformat()}] Nada pendiente por publicar ahora."
+        if args.check and upcoming_items:
+            msg += f" Próximo en ventana (<45m): {[(x[1]['id'], x[0].isoformat()) for x in upcoming_items]}"
+        print(msg)
         return 0
 
     print(f"[{now.isoformat()}] Items a procesar: {[x['id'] for x in due_items]}")
