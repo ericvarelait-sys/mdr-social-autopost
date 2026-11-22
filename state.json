@@ -21,7 +21,9 @@
     "H02": {
       "ig_error": "HTTP 400 on https://graph.facebook.com/v21.0/17841427135524717/media_publish: {\"error\":{\"message\":\"The requested resource does not exist\",\"code\":24,\"type\":\"OAuthException\",\"error_subcode\":2207006,\"is_transient\":false,\"error_user_msg\":\"No se encuentra el contenido multimedia con el identificador 18.129.171.142.904.518.\",\"error_user_title\":\"Contenido multimedia no encontrado\",\"fbtrace_id\":\"ALyBFQNJlERu9-o8yNnG1cf\"}}",
       "fb_id": "1140936741999190",
-      "fb_published_at": "2026-11-22T20:00:24.308812-03:00"
+      "fb_published_at": "2026-11-22T20:00:24.308812-03:00",
+      "ig_id": "17971608045198243",
+      "ig_published_at": "2026-11-22T20:10:26.443518-03:00"
     }
   }
 }
